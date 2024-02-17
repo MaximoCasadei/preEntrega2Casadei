@@ -1,18 +1,33 @@
 const express = require("express");
 const router = express.Router();
 
-const ProductManager = require("../dao/db/product-manager-db");
+const ProductManager = require("../controllers/product-manager-db");
 const productManager = new ProductManager();
+
 
 router.get("/", async (req, res) => {
     try {
-        const limit = req.query.limit;
-        const productos = await productManager.getProducts();
-        if (limit) {
-            res.json(productos.slice(0, limit));
-        } else {
-            res.json(productos);
-        }
+        const { limit = 10, page = 1, sort, query } = req.query;
+
+        const productos = await productManager.getProducts({
+            limit: parseInt(limit),
+            page: parseInt(page),
+            sort,
+            query,
+        });
+
+        res.json({
+            status: 'success',
+            payload: productos,
+            totalPages: productos.totalPages,
+            prevPage: productos.prevPage,
+            nextPage: productos.nextPage,
+            page: productos.page,
+            hasPrevPage: productos.hasPrevPage,
+            hasNextPage: productos.hasNextPage,
+            prevLink: productos.hasPrevPage ? `/api/products?limit=${limit}&page=${productos.prevPage}&sort=${sort}&query=${query}` : null,
+            nextLink: productos.hasNextPage ? `/api/products?limit=${limit}&page=${productos.nextPage}&sort=${sort}&query=${query}` : null,
+        });
     } catch (error) {
         console.error("Error al obtener productos", error);
         res.status(500).json({
@@ -26,14 +41,14 @@ router.get("/:pid", async (req, res) => {
     const id = req.params.pid;
 
     try {
-        const producto = await productManager.getProductById(id);
-        if (!producto) {
+        const product = await productManager.getProductById(id);
+        if (!product) {
             return res.json({
                 error: "Producto no encontrado"
             });
         }
 
-        res.json(producto);
+        res.json(product);
     } catch (error) {
         console.error("Error al obtener producto", error);
         res.status(500).json({
